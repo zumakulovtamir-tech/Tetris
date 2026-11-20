@@ -20,23 +20,23 @@
             font-family: 'Montserrat', sans-serif;
             display: flex; 
             flex-direction: column; 
-            justify-content: space-between;
+            justify-content: center; /* Центрируем всё по вертикали */
             align-items: center;
             height: 100vh; 
-            height: 100dvh; /* Динамическая высота для телефонов */
+            height: 100dvh; 
             overflow: hidden; 
             touch-action: none;
-            padding: 10px 0;
         }
         
-        /* Игровая зона (Поле + Панель) */
+        /* Игровая зона */
         #game-area {
             display: flex; 
-            gap: 15px; 
-            align-items: flex-start;
+            gap: 10px; 
+            align-items: center;
             justify-content: center;
-            flex-grow: 1; /* Занимает всё свободное место */
-            max-height: 75vh;
+            height: 65vh; /* Занимает 65% высоты экрана */
+            max-height: 600px;
+            margin-bottom: 15px;
         }
 
         canvas#board {
@@ -44,8 +44,7 @@
             border: 3px solid #00ffcc;
             border-radius: 8px;
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
-            height: 100%; /* Растягиваем по высоте контейнера */
-            width: auto;  /* Ширина подстроится сама (пропорция 1:2) */
+            height: 100%; 
             aspect-ratio: 1 / 2;
         }
 
@@ -54,6 +53,7 @@
             flex-direction: column; 
             gap: 10px;
             height: 100%;
+            justify-content: flex-start;
         }
 
         .info-box {
@@ -72,18 +72,17 @@
             border: 2px solid #302b63; 
             border-radius: 8px; 
             width: 100%;
-            max-width: 100px;
+            max-width: 90px;
             height: auto;
         }
 
         /* --- КНОПКИ --- */
         #mobile-controls {
-            display: flex; /* Показываем всегда, чтобы не ломать верстку */
+            display: flex; 
             width: 100%;
-            max-width: 500px;
+            max-width: 400px;
             justify-content: space-between; 
-            padding: 10px 20px;
-            margin-bottom: 10px;
+            padding: 0 15px;
         }
 
         .control-group { display: flex; gap: 10px; }
@@ -110,27 +109,71 @@
         }
         #mobile-controls button.action:active { background: #ffcc00; color: #0f0c29; }
 
-        /* Скрываем кнопки на компьютерах с широким экраном */
+        /* Скрываем кнопки на ПК */
         @media (min-width: 800px) {
             #mobile-controls { display: none; }
-            #game-area { max-height: 90vh; }
-            canvas#board { height: 80vh; }
+            #game-area { height: 80vh; }
         }
 
-        #game-over {
+        /* --- МЕНЮ И ЭКРАНЫ --- */
+        .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 12, 27, 0.9); display: none;
-            flex-direction: column; justify-content: center; align-items: center; z-index: 10;
+            background: rgba(15, 12, 27, 0.95); backdrop-filter: blur(5px);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10; padding: 20px;
         }
-        #game-over h1 { color: #ff3366; font-size: 40px; margin-bottom: 20px; text-shadow: 0 0 20px #ff3366; }
-        #game-over button {
-            padding: 15px 40px; font-size: 20px; background: #00ffcc; color: #0f0c29;
-            border: none; border-radius: 10px; font-weight: bold; font-family: 'Montserrat';
+
+        #menu-screen { display: flex; } /* Изначально показываем меню */
+        #game-over { display: none; }
+
+        h1 { color: #00ffcc; font-size: 36px; margin-bottom: 20px; text-shadow: 0 0 15px rgba(0, 255, 204, 0.6); }
+        h2 { color: #ff3366; font-size: 36px; margin-bottom: 10px; text-shadow: 0 0 15px #ff3366; }
+
+        input {
+            padding: 12px; font-size: 16px; border-radius: 10px; border: 2px solid #302b63;
+            background: #24243e; color: white; text-align: center; margin-bottom: 20px; width: 250px;
+            outline: none; font-family: 'Montserrat', sans-serif;
         }
+        input:focus { border-color: #00ffcc; }
+
+        button.btn {
+            padding: 12px 40px; font-size: 20px; background: #00ffcc; color: #0f0c29;
+            border: none; border-radius: 10px; font-weight: bold; font-family: 'Montserrat'; cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        #leaderboard {
+            background: rgba(0,0,0,0.5); padding: 15px 25px; border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1); width: 280px;
+        }
+        #leaderboard h3 { color: #ffcc00; text-align: center; margin-bottom: 10px; font-size: 18px; }
+        #scoreList { list-style: none; font-size: 16px; line-height: 1.6; }
+        #scoreList li { display: flex; align-items: center; }
     </style>
 </head>
 <body>
 
+    <!-- Экран меню -->
+    <div id="menu-screen" class="overlay">
+        <h1>🧱 ТЕТРИС</h1>
+        <input type="text" id="playerName" placeholder="Твоё имя..." maxlength="10" autocomplete="off">
+        <button id="startBtn" class="btn">ИГРАТЬ</button>
+        
+        <div id="leaderboard">
+            <h3>🏆 Топ-5 Игроков</h3>
+            <ul id="scoreList"></ul>
+        </div>
+    </div>
+
+    <!-- Экран проигрыша -->
+    <div id="game-over" class="overlay">
+        <h2>GAME OVER</h2>
+        <p style="font-size: 24px; margin-bottom: 20px;">Очки: <span id="finalScore">0</span></p>
+        <button id="restart-btn" class="btn">ИГРАТЬ СНОВА</button>
+        <button id="backToMenuBtn" class="btn" style="background: transparent; border: 2px solid #00ffcc; color: #00ffcc;">В МЕНЮ</button>
+    </div>
+
+    <!-- Игровая зона -->
     <div id="game-area">
         <canvas id="board" width="300" height="600"></canvas>
         
@@ -139,13 +182,14 @@
                 <h3>ОЧКИ</h3>
                 <p id="score">0</p>
             </div>
-            <div class="info-box" style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="info-box">
                 <h3>СЛЕДУЮЩАЯ</h3>
                 <canvas id="next-canvas" width="100" height="100"></canvas>
             </div>
         </div>
     </div>
 
+    <!-- Кнопки -->
     <div id="mobile-controls">
         <div class="control-group">
             <button id="btn-left">◀</button>
@@ -156,11 +200,6 @@
             <button id="btn-rotate" class="action">↻</button>
             <button id="btn-drop" class="action">⤓</button>
         </div>
-    </div>
-
-    <div id="game-over">
-        <h1>GAME OVER</h1>
-        <button id="restart-btn">ИГРАТЬ СНОВА</button>
     </div>
 
     <script>
@@ -182,7 +221,41 @@
         let board = [], score = 0, gameOver = false;
         let piece = null, nextPiece = null;
         let dropCounter = 0, dropInterval = 800, lastTime = 0;
+        let currentPlayerName = "Игрок";
 
+        // --- РЕКОРДЫ ---
+        function loadLeaderboard() {
+            const scoreList = document.getElementById('scoreList');
+            scoreList.innerHTML = ""; 
+            let records = JSON.parse(localStorage.getItem("tetrisHighScores")) || [];
+            
+            if (records.length === 0) {
+                scoreList.innerHTML = "<li style='color: #888; justify-content: center;'>Пока нет рекордов</li>";
+                return;
+            }
+
+            records.forEach((rec, index) => {
+                let li = document.createElement("li");
+                let medal = "";
+                if (index === 0) { medal = "🥇 "; li.style.color = "#ffd700"; } 
+                else if (index === 1) { medal = "🥈 "; li.style.color = "#c0c0c0"; } 
+                else if (index === 2) { medal = "🥉 "; li.style.color = "#cd7f32"; } 
+                else { medal = "▫️ "; li.style.color = "#aaa"; }
+                li.innerText = `${medal}${rec.name} — ${rec.score}`;
+                scoreList.appendChild(li);
+            });
+        }
+
+        function saveScore() {
+            let records = JSON.parse(localStorage.getItem("tetrisHighScores")) || [];
+            records.push({ name: currentPlayerName, score: score });
+            records.sort((a, b) => b.score - a.score);
+            records = records.slice(0, 5); 
+            localStorage.setItem("tetrisHighScores", JSON.stringify(records));
+            loadLeaderboard();
+        }
+
+        // --- ЛОГИКА ТЕТРИСА ---
         function createBoard() {
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
         }
@@ -203,6 +276,8 @@
             drawNext();
             if (collide()) {
                 gameOver = true;
+                document.getElementById('finalScore').innerText = score;
+                saveScore(); // Сохраняем рекорд
                 document.getElementById('game-over').style.display = 'flex';
             }
         }
@@ -238,29 +313,10 @@
             return result;
         }
 
-        function playerRotate() {
-            const oldMatrix = piece.matrix;
-            piece.matrix = rotate(piece.matrix);
-            if (collide()) piece.matrix = oldMatrix;
-        }
-
-        function playerDrop() {
-            piece.y++;
-            if (collide()) {
-                piece.y--; merge(); clearLines(); spawnPiece();
-            }
-            dropCounter = 0;
-        }
-
-        function playerMove(dir) {
-            piece.x += dir;
-            if (collide()) piece.x -= dir;
-        }
-
-        function playerHardDrop() {
-            while (!collide()) piece.y++;
-            piece.y--; playerDrop();
-        }
+        function playerRotate() { if(gameOver) return; const oldMatrix = piece.matrix; piece.matrix = rotate(piece.matrix); if (collide()) piece.matrix = oldMatrix; }
+        function playerMove(dir) { if(gameOver) return; piece.x += dir; if (collide()) piece.x -= dir; }
+        function playerDrop() { if(gameOver) return; piece.y++; if (collide()) { piece.y--; merge(); clearLines(); spawnPiece(); } dropCounter = 0; }
+        function playerHardDrop() { if(gameOver) return; while (!collide()) piece.y++; piece.y--; playerDrop(); }
 
         function clearLines() {
             for (let y = ROWS - 1; y >= 0; y--) {
@@ -275,20 +331,13 @@
         }
 
         function draw() {
-            ctx.fillStyle = '#151525';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+            ctx.fillStyle = '#151525'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
             for(let i=0; i<=COLS; i++){ ctx.beginPath(); ctx.moveTo(i*BLOCK_SIZE, 0); ctx.lineTo(i*BLOCK_SIZE, canvas.height); ctx.stroke(); }
             for(let i=0; i<=ROWS; i++){ ctx.beginPath(); ctx.moveTo(0, i*BLOCK_SIZE); ctx.lineTo(canvas.width, i*BLOCK_SIZE); ctx.stroke(); }
 
             board.forEach((row, y) => row.forEach((color, x) => { if (color !== 0) drawBlock(ctx, x, y, color); }));
-
-            if (piece) {
-                piece.matrix.forEach((row, y) => row.forEach((value, x) => {
-                    if (value !== 0) drawBlock(ctx, piece.x + x, piece.y + y, piece.color);
-                }));
-            }
+            if (piece) piece.matrix.forEach((row, y) => row.forEach((value, x) => { if (value !== 0) drawBlock(ctx, piece.x + x, piece.y + y, piece.color); }));
         }
 
         function drawBlock(context, x, y, color) {
@@ -303,10 +352,7 @@
             if (!nextPiece) return;
             const size = 20, offsetX = (100 - nextPiece.matrix[0].length * size) / 2, offsetY = (100 - nextPiece.matrix.length * size) / 2;
             nextPiece.matrix.forEach((row, y) => row.forEach((value, x) => {
-                if (value !== 0) {
-                    nextCtx.fillStyle = nextPiece.color;
-                    nextCtx.fillRect(offsetX + x * size, offsetY + y * size, size - 1, size - 1);
-                }
+                if (value !== 0) { nextCtx.fillStyle = nextPiece.color; nextCtx.fillRect(offsetX + x * size, offsetY + y * size, size - 1, size - 1); }
             }));
         }
 
@@ -318,8 +364,8 @@
             requestAnimationFrame(update);
         }
 
+        // Управление
         document.addEventListener('keydown', e => {
-            if (gameOver) return;
             if (e.key === 'ArrowLeft') playerMove(-1);
             if (e.key === 'ArrowRight') playerMove(1);
             if (e.key === 'ArrowDown') playerDrop();
@@ -327,30 +373,45 @@
             if (e.key === ' ') { e.preventDefault(); playerHardDrop(); } 
         });
 
-        // Используем 'pointerdown' вместо 'click' для мгновенного отклика на телефонах
         const bindBtn = (id, action) => {
             const btn = document.getElementById(id);
-            btn.addEventListener('pointerdown', (e) => {
-                e.preventDefault(); // Предотвращаем двойное нажатие/зум
-                action();
-            });
+            btn.addEventListener('pointerdown', (e) => { e.preventDefault(); action(); });
         };
-
         bindBtn('btn-left', () => playerMove(-1));
         bindBtn('btn-right', () => playerMove(1));
         bindBtn('btn-down', () => playerDrop());
         bindBtn('btn-rotate', () => playerRotate());
         bindBtn('btn-drop', () => playerHardDrop());
 
+        // Кнопки меню
+        document.getElementById('startBtn').addEventListener('click', () => {
+            let name = document.getElementById('playerName').value.trim();
+            currentPlayerName = name || "Игрок";
+            document.getElementById('menu-screen').style.display = 'none';
+            startGame();
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            document.getElementById('game-over').style.display = 'none';
+            startGame();
+        });
+
+        document.getElementById('backToMenuBtn').addEventListener('click', () => {
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('menu-screen').style.display = 'flex';
+            loadLeaderboard();
+        });
+
         function startGame() {
             createBoard(); score = 0; document.getElementById('score').innerText = score; gameOver = false;
-            document.getElementById('game-over').style.display = 'none';
             nextPiece = newPiece(); spawnPiece();
             lastTime = performance.now(); requestAnimationFrame(update);
         }
 
-        document.getElementById('restart-btn').addEventListener('click', startGame);
-        startGame();
+        // Инициализация при загрузке
+        loadLeaderboard();
+        createBoard(); // Рисуем пустое поле на фоне меню
+        draw();
     </script>
 </body>
 </html>
