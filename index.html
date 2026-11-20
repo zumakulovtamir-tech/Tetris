@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body {
             background: #0f0c29; background: linear-gradient(to right, #24243e, #302b63, #0f0c29);
             color: white; font-family: 'Montserrat', sans-serif;
@@ -46,32 +46,55 @@
         /* --- МОБИЛЬНЫЕ КНОПКИ --- */
         #mobile-controls {
             display: none; /* Скрыты на компьютере */
-            margin-top: 15px;
-            gap: 10px;
+            margin-top: 20px;
             width: 100%;
-            max-width: 340px;
-            justify-content: center;
+            max-width: 400px;
+            justify-content: space-between; /* Разделяем на две группы */
+            padding: 0 20px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
         }
 
         #mobile-controls button {
-            flex: 1;
-            padding: 20px 0;
-            font-size: 24px;
+            width: 65px;
+            height: 65px;
+            font-size: 28px;
+            border-radius: 15px;
             background: rgba(0, 255, 204, 0.1);
             color: #00ffcc;
             border: 2px solid #00ffcc;
-            border-radius: 10px;
             font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* Убирает задержку при тапе на телефоне */
+            touch-action: manipulation; 
         }
 
         #mobile-controls button:active {
             background: #00ffcc;
             color: #0f0c29;
+            transform: scale(0.9);
+        }
+
+        /* Кнопки действий (поворот и сброс) выделяем желтым */
+        #mobile-controls button.action {
+            border-color: #ffcc00;
+            color: #ffcc00;
+            background: rgba(255, 204, 0, 0.1);
+        }
+
+        #mobile-controls button.action:active {
+            background: #ffcc00;
+            color: #0f0c29;
         }
 
         /* Адаптив для телефонов */
         @media (max-width: 600px) {
-            #game-container { transform: scale(0.8); transform-origin: top center; margin-top: -20px; }
+            #game-container { transform: scale(0.8); transform-origin: top center; margin-top: -30px; }
             #mobile-controls { display: flex; }
         }
 
@@ -91,10 +114,8 @@
 <body>
 
     <div id="game-container">
-        <!-- Основное поле -->
         <canvas id="board" width="300" height="600"></canvas>
         
-        <!-- Боковая панель -->
         <div id="side-panel">
             <div class="info-box">
                 <h3>ОЧКИ</h3>
@@ -107,16 +128,19 @@
         </div>
     </div>
 
-    <!-- Кнопки для телефона -->
+    <!-- ОБНОВЛЕННЫЕ КНОПКИ -->
     <div id="mobile-controls">
-        <button id="btn-left">←</button>
-        <button id="btn-rotate">↻</button>
-        <button id="btn-right">→</button>
-        <button id="btn-down">↓</button>
-        <button id="btn-drop">⤓</button>
+        <div class="control-group">
+            <button id="btn-left">◀</button>
+            <button id="btn-down">▼</button>
+            <button id="btn-right">▶</button>
+        </div>
+        <div class="control-group">
+            <button id="btn-rotate" class="action">↻</button>
+            <button id="btn-drop" class="action">⤓</button>
+        </div>
     </div>
 
-    <!-- Экран проигрыша -->
     <div id="game-over">
         <h1>GAME OVER</h1>
         <button id="restart-btn">ИГРАТЬ СНОВА</button>
@@ -130,33 +154,29 @@
         
         const COLS = 10;
         const ROWS = 20;
-        const BLOCK_SIZE = 30; // 300 / 10
+        const BLOCK_SIZE = 30; 
 
-        // Цвета для фигур (I, J, L, O, S, T, Z)
         const COLORS = ['#00ffff', '#0000ff', '#ffa500', '#ffff00', '#00ff00', '#ff00ff', '#ff0000'];
         
-        // Формы фигур (матрицы)
         const SHAPES = [
-            [[1,1,1,1]], // I
-            [[1,0,0],[1,1,1]], // J
-            [[0,0,1],[1,1,1]], // L
-            [[1,1],[1,1]], // O
-            [[0,1,1],[1,1,0]], // S
-            [[0,1,0],[1,1,1]], // T
-            [[1,1,0],[0,1,1]]  // Z
+            [[1,1,1,1]], 
+            [[1,0,0],[1,1,1]], 
+            [[0,0,1],[1,1,1]], 
+            [[1,1],[1,1]], 
+            [[0,1,1],[1,1,0]], 
+            [[0,1,0],[1,1,1]], 
+            [[1,1,0],[0,1,1]]  
         ];
 
         let board = [];
         let score = 0;
         let gameOver = false;
         
-        // Текущая и следующая фигура
         let piece = null;
         let nextPiece = null;
         
-        // Таймеры падения
         let dropCounter = 0;
-        let dropInterval = 800; // Миллисекунд (медленнее - легче)
+        let dropInterval = 800; 
         let lastTime = 0;
 
         function createBoard() {
@@ -164,7 +184,7 @@
             for (let y = 0; y < ROWS; y++) {
                 board[y] = [];
                 for (let x = 0; x < COLS; x++) {
-                    board[y][x] = 0; // 0 означает пустую клетку
+                    board[y][x] = 0;
                 }
             }
         }
@@ -187,7 +207,6 @@
             nextPiece = newPiece();
             drawNext();
             
-            // Если новая фигура сразу сталкивается - это Game Over
             if (collide()) {
                 gameOver = true;
                 document.getElementById('game-over').style.display = 'flex';
@@ -201,11 +220,9 @@
                         let boardX = piece.x + x;
                         let boardY = piece.y + y;
                         
-                        // Проверка границ
                         if (boardX < 0 || boardX >= COLS || boardY >= ROWS) {
                             return true;
                         }
-                        // Проверка на столкновение с другими блоками
                         if (boardY >= 0 && board[boardY][boardX] !== 0) {
                             return true;
                         }
@@ -226,7 +243,6 @@
         }
 
         function rotate(matrix) {
-            // Транспонирование матрицы + переворот строк (магия поворота на 90 градусов)
             const N = matrix.length;
             const M = matrix[0].length;
             let result = [];
@@ -242,7 +258,6 @@
         function playerRotate() {
             const oldMatrix = piece.matrix;
             piece.matrix = rotate(piece.matrix);
-            // Если после поворота фигура вылезла за границы, откатываем
             if (collide()) {
                 piece.matrix = oldMatrix;
             }
@@ -284,23 +299,19 @@
                     }
                 }
                 if (isFull) {
-                    // Удаляем заполненную строку и добавляем новую сверху
                     board.splice(y, 1);
                     board.unshift(new Array(COLS).fill(0));
                     score += 100;
                     document.getElementById('score').innerText = score;
-                    y++; // Проверяем ту же строку снова
+                    y++; 
                 }
             }
         }
 
-        // --- РИСОВАНИЕ ---
         function draw() {
-            // Фон
             ctx.fillStyle = '#151525';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Сетка
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
             for(let i=0; i<=COLS; i++){
                 ctx.beginPath(); ctx.moveTo(i*BLOCK_SIZE, 0); ctx.lineTo(i*BLOCK_SIZE, canvas.height); ctx.stroke();
@@ -309,7 +320,6 @@
                 ctx.beginPath(); ctx.moveTo(0, i*BLOCK_SIZE); ctx.lineTo(canvas.width, i*BLOCK_SIZE); ctx.stroke();
             }
 
-            // Блоки на поле
             for (let y = 0; y < ROWS; y++) {
                 for (let x = 0; x < COLS; x++) {
                     if (board[y][x] !== 0) {
@@ -318,7 +328,6 @@
                 }
             }
 
-            // Падающая фигура
             if (piece) {
                 piece.matrix.forEach((row, y) => {
                     row.forEach((value, x) => {
@@ -334,7 +343,6 @@
             context.fillStyle = color;
             context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
             
-            // Блик для красоты
             context.fillStyle = 'rgba(255, 255, 255, 0.3)';
             context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, 4);
         }
@@ -345,7 +353,7 @@
             
             if (!nextPiece) return;
             
-            const size = 20; // Размер блока в превью
+            const size = 20; 
             const offsetX = (100 - nextPiece.matrix[0].length * size) / 2;
             const offsetY = (100 - nextPiece.matrix.length * size) / 2;
 
@@ -359,7 +367,6 @@
             });
         }
 
-        // --- ИГРОВОЙ ЦИКЛ ---
         function update(time = 0) {
             if (gameOver) return;
 
@@ -375,24 +382,23 @@
             requestAnimationFrame(update);
         }
 
-        // --- УПРАВЛЕНИЕ С КЛАВИАТУРЫ ---
+        // Управление с клавиатуры
         document.addEventListener('keydown', e => {
             if (gameOver) return;
             if (e.key === 'ArrowLeft') playerMove(-1);
             if (e.key === 'ArrowRight') playerMove(1);
             if (e.key === 'ArrowDown') playerDrop();
             if (e.key === 'ArrowUp') playerRotate();
-            if (e.key === ' ') { e.preventDefault(); playerHardDrop(); } // Пробел - мгновенное падение
+            if (e.key === ' ') { e.preventDefault(); playerHardDrop(); } 
         });
 
-        // --- УПРАВЛЕНИЕ С ТЕЛЕФОНА ---
+        // Управление с телефона
         document.getElementById('btn-left').addEventListener('click', () => playerMove(-1));
         document.getElementById('btn-right').addEventListener('click', () => playerMove(1));
         document.getElementById('btn-down').addEventListener('click', () => playerDrop());
         document.getElementById('btn-rotate').addEventListener('click', () => playerRotate());
         document.getElementById('btn-drop').addEventListener('click', () => playerHardDrop());
 
-        // --- СТАРТ И РЕСТАРТ ---
         function startGame() {
             createBoard();
             score = 0;
@@ -408,8 +414,6 @@
         }
 
         document.getElementById('restart-btn').addEventListener('click', startGame);
-        
-        // Запуск при загрузке страницы
         startGame();
     </script>
 </body>
