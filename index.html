@@ -162,7 +162,7 @@
             }
         });
 
-        // --- ГЛОБАЛЬНЫЕ РЕКОРДЫ (Firebase) ---
+        // --- ГЛОБАЛЬНЫЕ РЕКОРДЫ (Firebase) С ФИЛЬТРАЦИЕЙ ДУБЛИКАТОВ ---
         function loadLeaderboard() {
             const scoreList = document.getElementById('scoreList');
             
@@ -176,10 +176,21 @@
                 }
 
                 let records = Object.values(data);
-                records.sort((a, b) => b.score - a.score);
-                records = records.slice(0, 10);
+                let bestScores = {};
 
-                records.forEach((rec, index) => {
+                // МАГИЯ: Проходим по всем записям и оставляем только лучшую для каждого имени
+                records.forEach(rec => {
+                    if (!bestScores[rec.name] || rec.score > bestScores[rec.name].score) {
+                        bestScores[rec.name] = rec;
+                    }
+                });
+
+                // Превращаем обратно в массив, сортируем и берем топ-10
+                let uniqueRecords = Object.values(bestScores);
+                uniqueRecords.sort((a, b) => b.score - a.score);
+                uniqueRecords = uniqueRecords.slice(0, 10);
+
+                uniqueRecords.forEach((rec, index) => {
                     let li = document.createElement("li");
                     let medal = index === 0 ? "🥇 " : index === 1 ? "🥈 " : index === 2 ? "🥉 " : "▫️ ";
                     li.style.color = index === 0 ? "#ffd700" : index === 1 ? "#c0c0c0" : index === 2 ? "#cd7f32" : "#ddd";
