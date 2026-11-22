@@ -31,14 +31,12 @@
         #mobile-controls button.action:active { background: #ffcc00; color: #0f0c29; }
         @media (min-width: 800px) { #mobile-controls { display: none; } #game-area { height: 80vh; } }
 
-        /* --- МЕНЮ --- */
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 12, 27, 0.95); backdrop-filter: blur(5px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 20px; }
         #menu-screen { display: flex; }
         #game-over { display: none; }
         h1 { color: #00ffcc; font-size: 36px; margin-bottom: 20px; text-shadow: 0 0 15px rgba(0, 255, 204, 0.6); }
         h2 { color: #ff3366; font-size: 36px; margin-bottom: 10px; text-shadow: 0 0 15px #ff3366; }
 
-        /* Поле ввода и список */
         #start-menu { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; }
         input { padding: 12px; font-size: 16px; border-radius: 10px; border: 2px solid #302b63; background: #24243e; color: white; text-align: center; margin-bottom: 20px; width: 250px; outline: none; font-family: 'Montserrat', sans-serif; }
         input:focus { border-color: #00ffcc; }
@@ -52,6 +50,11 @@
         #customDropdown li:hover { background: #00ffcc; color: #0f0c29; font-weight: bold; }
 
         button.btn { padding: 12px 40px; font-size: 20px; background: #00ffcc; color: #0f0c29; border: none; border-radius: 10px; font-weight: bold; font-family: 'Montserrat'; cursor: pointer; margin-bottom: 20px; }
+        
+        /* Кнопка сброса имен */
+        #clearNamesBtn { background: transparent; color: #ff3366; border: 1px solid #ff3366; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 12px; margin-top: -10px; margin-bottom: 20px; }
+        #clearNamesBtn:hover { background: #ff3366; color: white; }
+
         #leaderboard { background: rgba(0,0,0,0.5); padding: 15px 25px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); width: 300px; max-height: 200px; overflow-y: auto; }
         #leaderboard h3 { color: #ffcc00; text-align: center; margin-bottom: 10px; font-size: 18px; }
         #scoreList { list-style: none; font-size: 16px; line-height: 1.6; }
@@ -65,8 +68,9 @@
         
         <div id="start-menu">
             <input type="text" id="playerName" placeholder="Твоё имя..." maxlength="10" autocomplete="off">
-            <ul id="customDropdown"></ul> <!-- Список имен -->
+            <ul id="customDropdown"></ul>
             <button id="startBtn" class="btn">ИГРАТЬ</button>
+            <button id="clearNamesBtn">Очистить историю имен</button>
         </div>
         
         <div id="leaderboard">
@@ -102,12 +106,10 @@
         </div>
     </div>
 
-    <!-- Подключаем Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // Твой конфиг Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyD6RUO1GnqA3QtrkMPmPIpQBCsTBLOFIzo",
             authDomain: "tetris-game-9cd12.firebaseapp.com",
@@ -136,9 +138,10 @@
         let dropCounter = 0, dropInterval = 800, lastTime = 0;
         let currentPlayerName = "Игрок";
 
-        // --- СИСТЕМА ИМЕН ИГРОКОВ ---
+        // --- СИСТЕМА ИМЕН ---
         const playerNameInput = document.getElementById('playerName');
         const customDropdown = document.getElementById('customDropdown');
+        const clearNamesBtn = document.getElementById('clearNamesBtn');
 
         function loadPlayerNames() {
             customDropdown.innerHTML = ""; 
@@ -147,7 +150,7 @@
                 let li = document.createElement("li");
                 li.innerText = name;
                 li.addEventListener("mousedown", (e) => {
-                    e.preventDefault(); // Чтобы инпут не терял фокус
+                    e.preventDefault();
                     playerNameInput.value = name;
                     customDropdown.style.display = "none";
                 });
@@ -155,15 +158,22 @@
             });
         }
 
-        // Показываем список при клике на поле
         playerNameInput.addEventListener("focus", () => {
             if (customDropdown.children.length > 0) customDropdown.style.display = "block";
         });
 
-        // Прячем список при клике в другое место
         document.addEventListener("click", (e) => {
             if (e.target !== playerNameInput && e.target !== customDropdown) {
                 customDropdown.style.display = "none";
+            }
+        });
+
+        // --- ОЧИСТКА ИМЕН ---
+        clearNamesBtn.addEventListener("click", () => {
+            if (confirm("Удалить все сохраненные имена на этом устройстве?")) {
+                localStorage.removeItem("tetrisPlayers");
+                loadPlayerNames();
+                playerNameInput.value = "";
             }
         });
 
@@ -296,19 +306,17 @@
         const bindBtn = (id, action) => { const btn = document.getElementById(id); btn.addEventListener('pointerdown', (e) => { e.preventDefault(); action(); }); };
         bindBtn('btn-left', () => playerMove(-1)); bindBtn('btn-right', () => playerMove(1)); bindBtn('btn-down', () => playerDrop()); bindBtn('btn-rotate', () => playerRotate()); bindBtn('btn-drop', () => playerHardDrop());
 
-        // Кнопка Старт и Сохранение Имени
         document.getElementById('startBtn').addEventListener('click', () => {
             let name = playerNameInput.value.trim();
             if (name === "") name = "Игрок";
             currentPlayerName = name;
             
-            // Сохраняем имя, если его еще нет в списке
             let allPlayers = JSON.parse(localStorage.getItem("tetrisPlayers")) || [];
             if (!allPlayers.includes(name)) {
                 allPlayers.push(name);
                 localStorage.setItem("tetrisPlayers", JSON.stringify(allPlayers));
             }
-            loadPlayerNames(); // Обновляем выпадающий список
+            loadPlayerNames(); 
             
             customDropdown.style.display = "none"; 
             document.getElementById('menu-screen').style.display = 'none';
@@ -324,7 +332,6 @@
             lastTime = performance.now(); requestAnimationFrame(update);
         }
 
-        // Инициализация
         loadPlayerNames();
         loadLeaderboard();
         createBoard();
