@@ -50,10 +50,6 @@
         #customDropdown li:hover { background: #00ffcc; color: #0f0c29; font-weight: bold; }
 
         button.btn { padding: 12px 40px; font-size: 20px; background: #00ffcc; color: #0f0c29; border: none; border-radius: 10px; font-weight: bold; font-family: 'Montserrat'; cursor: pointer; margin-bottom: 20px; }
-        
-        /* Кнопка сброса имен */
-        #clearNamesBtn { background: transparent; color: #ff3366; border: 1px solid #ff3366; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 12px; margin-top: -10px; margin-bottom: 20px; }
-        #clearNamesBtn:hover { background: #ff3366; color: white; }
 
         #leaderboard { background: rgba(0,0,0,0.5); padding: 15px 25px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); width: 300px; max-height: 200px; overflow-y: auto; }
         #leaderboard h3 { color: #ffcc00; text-align: center; margin-bottom: 10px; font-size: 18px; }
@@ -70,7 +66,6 @@
             <input type="text" id="playerName" placeholder="Твоё имя..." maxlength="10" autocomplete="off">
             <ul id="customDropdown"></ul>
             <button id="startBtn" class="btn">ИГРАТЬ</button>
-            <button id="clearNamesBtn">Очистить историю имен</button>
         </div>
         
         <div id="leaderboard">
@@ -141,7 +136,6 @@
         // --- СИСТЕМА ИМЕН ---
         const playerNameInput = document.getElementById('playerName');
         const customDropdown = document.getElementById('customDropdown');
-        const clearNamesBtn = document.getElementById('clearNamesBtn');
 
         function loadPlayerNames() {
             customDropdown.innerHTML = ""; 
@@ -165,15 +159,6 @@
         document.addEventListener("click", (e) => {
             if (e.target !== playerNameInput && e.target !== customDropdown) {
                 customDropdown.style.display = "none";
-            }
-        });
-
-        // --- ОЧИСТКА ИМЕН ---
-        clearNamesBtn.addEventListener("click", () => {
-            if (confirm("Удалить все сохраненные имена на этом устройстве?")) {
-                localStorage.removeItem("tetrisPlayers");
-                loadPlayerNames();
-                playerNameInput.value = "";
             }
         });
 
