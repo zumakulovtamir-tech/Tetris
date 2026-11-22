@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Гонки: Выживание</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Montserrat', sans-serif; color: white; }
+        canvas { display: block; }
+
+        /* Интерфейс */
+        #ui { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; pointer-events: none; z-index: 10; }
+        #hp-bar-bg { width: 200px; height: 20px; background: rgba(255,0,0,0.5); border: 2px solid white; border-radius: 10px; overflow: hidden; }
+        #hp-bar { width: 100%; height: 100%; background: #00ffcc; transition: width 0.3s; }
+        #score-board { font-size: 24px; font-weight: bold; color: #fff; text-shadow: 0 0 10px #00ffcc; text-align: right; }
+        #speedometer { font-size: 16px; color: #aaa; }
+
+        /* Кнопки */
+        #controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 10; }
+        .btn-group { display: flex; gap: 15px; }
+        button {
+            width: 70px; height: 70px; border-radius: 50%; border: 3px solid #00ffcc;
+            background: rgba(0, 255, 204, 0.2); color: white; font-size: 24px;
+            display: flex; justify-content: center; align-items: center; touch-action: manipulation;
+            user-select: none; -webkit-user-select: none;
+        }
+        button:active { background: #00ffcc; color: #000; }
+        .gas { border-color: #ff3366; background: rgba(255, 51, 102, 0.2); }
+        .gas:active { background: #ff3366; }
+        .nitro { border-color: #ffcc00; background: rgba(255, 204, 0, 0.2); font-size: 14px; font-weight: bold; }
+        .nitro:active { background: #ffcc00; color: #000; }
+
+        /* Экран проигрыша */
+        #game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 20; }
+        #game-over h1 { color: #ff3366; font-size: 48px; text-shadow: 0 0 20px #ff3366; margin-bottom: 20px; }
+        #restart-btn { padding: 15px 40px; font-size: 20px; background: #00ffcc; color: #000; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div>
+            <div id="hp-bar-bg"><div id="hp-bar"></div></div>
+        </div>
+        <div id="score-board">
+            Очки: <span id="score">0</span><br>
+            <div id="speedometer">0 км/ч</div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <div class="btn-group">
+            <button id="btn-left">◀</button>
+            <button id="btn-right">▶</button>
+        </div>
+        <div class="btn-group" style="align-items: flex-end;">
+            <button id="btn-nitro" class="nitro">🔥<br>НИТРО</button>
+            <button id="btn-up" class="gas">▲</button>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h1>АВАРИЯ!</h1>
+        <p style="font-size: 24px; margin-bottom: 20px;">Твой результат: <span id="final-score">0</span></p>
+        <button id="restart-btn">ЕЩЁ РАЗ</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- 1. НАСТРОЙКА СЦЕНЫ ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x000000, 30, 150); 
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        // --- 2. СОЗДАЕМ МИР ---
+        const roadGeometry = new THREE.PlaneGeometry(20, 300);
+        const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.rotation.x = -Math.PI / 2;
+        scene.add(road);
+
+        const borderGeom = new THREE.BoxGeometry(0.5, 1, 300);
+        const borderMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8 });
+        const leftBorder = new THREE.Mesh(borderGeom, borderMat);
+        leftBorder.position.set(-10, 0, -150);
+        const rightBorder = new THREE.Mesh(borderGeom, borderMat);
+        rightBorder.position.set(10, 0, -150);
+        scene.add(leftBorder, rightBorder);
+
+        const lines = [];
+        const lineGeom = new THREE.PlaneGeometry(0.3, 3);
+        const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        for (let i = 0; i < 30; i++) {
+            const line = new THREE.Mesh(lineGeom, lineMat);
+            line.rotation.x = -Math.PI / 2;
+            line.position.set(0, 0.01, -i * 10);
+            scene.add(line);
+            lines.push(line);
+        }
+
+        // --- 3. МАШИНЫ ---
+        function createCar(colorHex, isEnemy = false) {
+            const car = new THREE.Group();
+            const bodyGeom = new THREE.BoxGeometry(2, 0.8, 4);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, metalness: 0.5, roughness: 0.2 });
+            const body = new THREE.Mesh(bodyGeom, bodyMat);
+            body.position.y = 0.5;
+            car.add(body);
+
+            const roofGeom = new THREE.BoxGeometry(1.6, 0.6, 2);
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            const roof = new THREE.Mesh(roofGeom, roofMat);
+            roof.position.set(0, 1.2, -0.2);
+            car.add(roof);
+
+            const lightGeom = new THREE.BoxGeometry(0.4, 0.2, 0.1);
+            const lightMat = new THREE.MeshBasicMaterial({ color: isEnemy ? 0xff0000 : 0xffff00 });
+            const lightL = new THREE.Mesh(lightGeom, lightMat);
+            lightL.position.set(-0.6, 0.5, 2);
+            const lightR = new THREE.Mesh(lightGeom, lightMat);
+            lightR.position.set(0.6, 0.5, 2);
+            car.add(lightL, lightR);
+
+            return car;
+        }
+
+        const playerCar = createCar(0x0066ff);
+        scene.add(playerCar);
+
+        // --- 4. ПЕРЕМЕННЫЕ ---
+        let gameState = "playing";
+        let score = 0;
+        let health = 100;
+        let speed = 0;
+        let maxSpeed = 2.5;
+        let nitro = 100;
+        let isNitroActive = false;
+        
+        let enemies = [];
+        let lastSpawnTime = 0;
+        const spawnInterval = 1200; 
+
+        const keys = { left: false, right: false, up: false, nitro: false };
+        const uiHpBar = document.getElementById('hp-bar');
+        const uiScore = document.getElementById('score');
+        const uiSpeed = document.getElementById('speedometer');
+        const uiGameOver = document.getElementById('game-over');
+        const uiFinalScore = document.getElementById('final-score');
+
+        // --- 5. УПРАВЛЕНИЕ ---
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+            if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
+            if (e.key === 'Shift' || e.key === ' ') keys.nitro = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+            if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
+            if (e.key === 'Shift' || e.key === ' ') keys.nitro = false;
+        });
+
+        const bindTouch = (id, keyName) => {
+            const btn = document.getElementById(id);
+            btn.addEventListener('pointerdown', (e) => { e.preventDefault(); keys[keyName] = true; });
+            btn.addEventListener('pointerup', (e) => { e.preventDefault(); keys[keyName] = false; });
+            btn.addEventListener('pointerleave', (e) => { e.preventDefault(); keys[keyName] = false; });
+        };
+        bindTouch('btn-left', 'left'); bindTouch('btn-right', 'right'); bindTouch('btn-up', 'up'); bindTouch('btn-nitro', 'nitro');
+
+        // --- 6. ИГРОВОЙ ЦИКЛ ---
+        function animate(time) {
+            requestAnimationFrame(animate);
+            if (gameState !== "playing") return;
+
+            // Логика НИТРО
+            if (keys.nitro && nitro > 0) {
+                isNitroActive = true;
+                maxSpeed = 5; 
+                nitro -= 0.5; 
+            } else {
+                isNitroActive = false;
+                maxSpeed = 2.5;
+                if (nitro < 100) nitro += 0.1; 
+            }
+            nitro = Math.max(0, Math.min(100, nitro));
+
+            // Логика СКОРОСТИ
+            if (keys.up) speed += 0.05;
+            else speed *= 0.98; 
+            speed = Math.max(0, Math.min(maxSpeed, speed));
+            uiSpeed.innerText = Math.floor(speed * 40) + " км/ч";
+
+            // --- НОВАЯ ФИЗИКА РУЛЯ ---
+            const turnSpeed = 0.03; // Меньше = плавнее
+            const maxTurnAngle = 0.4; // Максимальный угол наклона машины
+
+            if (keys.left) playerCar.rotation.y += turnSpeed * (speed / maxSpeed);
+            else if (keys.right) playerCar.rotation.y -= turnSpeed * (speed / maxSpeed);
+            else {
+                // Если кнопки отпущены, машина плавно выравнивается
+                playerCar.rotation.y *= 0.95; 
+            }
+
+            // Ограничиваем максимальный угол, чтобы машину не заносило
+            playerCar.rotation.y = Math.max(-maxTurnAngle, Math.min(maxTurnAngle, playerCar.rotation.y));
+
+            // Движение машины
+            const moveX = Math.sin(playerCar.rotation.y) * speed;
+            playerCar.position.x -= moveX;
+            
+            // Не выезжаем за бордюры
+            if (playerCar.position.x < -8) playerCar.position.x = -8;
+            if (playerCar.position.x > 8) playerCar.position.x = 8;
+
+            // Движение разметки
+            lines.forEach(line => {
+                line.position.z += speed;
+                if (line.position.z > 10) line.position.z -= 300; 
+            });
+
+            // Спавн врагов
+            if (time - lastSpawnTime > spawnInterval) {
+                const enemyCar = createCar(0xff0000, true);
+                enemyCar.position.set(Math.random() * 16 - 8, 0, -150);
+                scene.add(enemyCar);
+                enemies.push(enemyCar);
+                lastSpawnTime = time;
+            }
+
+            // Движение врагов и коллизии
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                enemy.position.z += (speed + 1); 
+
+                const dist = playerCar.position.distanceTo(enemy.position);
+                if (dist < 3) {
+                    health -= 25;
+                    uiHpBar.style.width = Math.max(0, health) + "%";
+                    if (health <= 0) {
+                        gameState = "gameover";
+                        uiFinalScore.innerText = score;
+                        uiGameOver.style.display = "flex";
+                    }
+                    scene.remove(enemy);
+                    enemies.splice(i, 1);
+                    continue;
+                }
+
+                if (enemy.position.z > 10) {
+                    scene.remove(enemy);
+                    enemies.splice(i, 1);
+                    score += 10;
+                    uiScore.innerText = score;
+                }
+            }
+
+            // Камера за машиной
+            const camOffset = new THREE.Vector3(0, 4, 8);
+            camOffset.applyMatrix4(playerCar.matrixWorld);
+            camera.position.lerp(camOffset, 0.1);
+            camera.lookAt(playerCar.position);
+
+            renderer.render(scene, camera);
+        }
+        animate(0);
+
+        // Перезапуск
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            gameState = "playing";
+            health = 100;
+            score = 0;
+            speed = 0;
+            nitro = 100;
+            uiHpBar.style.width = "100%";
+            uiScore.innerText = score;
+            uiGameOver.style.display = "none";
+            
+            playerCar.position.set(0, 0, 0);
+            playerCar.rotation.y = 0;
+            
+            enemies.forEach(e => scene.remove(e));
+            enemies = [];
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
