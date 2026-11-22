@@ -31,13 +31,26 @@
         #mobile-controls button.action:active { background: #ffcc00; color: #0f0c29; }
         @media (min-width: 800px) { #mobile-controls { display: none; } #game-area { height: 80vh; } }
 
+        /* --- МЕНЮ --- */
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 12, 27, 0.95); backdrop-filter: blur(5px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; padding: 20px; }
         #menu-screen { display: flex; }
         #game-over { display: none; }
         h1 { color: #00ffcc; font-size: 36px; margin-bottom: 20px; text-shadow: 0 0 15px rgba(0, 255, 204, 0.6); }
         h2 { color: #ff3366; font-size: 36px; margin-bottom: 10px; text-shadow: 0 0 15px #ff3366; }
+
+        /* Поле ввода и список */
+        #start-menu { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; }
         input { padding: 12px; font-size: 16px; border-radius: 10px; border: 2px solid #302b63; background: #24243e; color: white; text-align: center; margin-bottom: 20px; width: 250px; outline: none; font-family: 'Montserrat', sans-serif; }
         input:focus { border-color: #00ffcc; }
+
+        #customDropdown {
+            position: absolute; top: 45px; width: 250px; background: #24243e;
+            border: 2px solid #00ffcc; border-radius: 10px; list-style: none; padding: 0; margin: 0;
+            display: none; z-index: 20; max-height: 120px; overflow-y: auto;
+        }
+        #customDropdown li { padding: 10px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #302b63; text-align: center; }
+        #customDropdown li:hover { background: #00ffcc; color: #0f0c29; font-weight: bold; }
+
         button.btn { padding: 12px 40px; font-size: 20px; background: #00ffcc; color: #0f0c29; border: none; border-radius: 10px; font-weight: bold; font-family: 'Montserrat'; cursor: pointer; margin-bottom: 20px; }
         #leaderboard { background: rgba(0,0,0,0.5); padding: 15px 25px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); width: 300px; max-height: 200px; overflow-y: auto; }
         #leaderboard h3 { color: #ffcc00; text-align: center; margin-bottom: 10px; font-size: 18px; }
@@ -49,8 +62,12 @@
 
     <div id="menu-screen" class="overlay">
         <h1>🧱 ТЕТРИС ОНЛАЙН</h1>
-        <input type="text" id="playerName" placeholder="Твоё имя..." maxlength="10" autocomplete="off">
-        <button id="startBtn" class="btn">ИГРАТЬ</button>
+        
+        <div id="start-menu">
+            <input type="text" id="playerName" placeholder="Твоё имя..." maxlength="10" autocomplete="off">
+            <ul id="customDropdown"></ul> <!-- Список имен -->
+            <button id="startBtn" class="btn">ИГРАТЬ</button>
+        </div>
         
         <div id="leaderboard">
             <h3>🌍 Мировой Топ-10</h3>
@@ -85,18 +102,16 @@
         </div>
     </div>
 
-    <!-- Подключаем Firebase (Правильные CDN ссылки) -->
+    <!-- Подключаем Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // ==========================================
-        // 🔥 ТВОЙ КОНФИГ ИЗ FIREBASE (С ДОБАВЛЕННЫМ databaseURL) 🔥
-        // ==========================================
+        // Твой конфиг Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyD6RUO1GnqA3QtrkMPmPIpQBCsTBLOFIzo",
             authDomain: "tetris-game-9cd12.firebaseapp.com",
-            databaseURL: "https://tetris-game-9cd12-default-rtdb.firebaseio.com/", // <-- Вот она!
+            databaseURL: "https://tetris-game-9cd12-default-rtdb.firebaseio.com/",
             projectId: "tetris-game-9cd12",
             storageBucket: "tetris-game-9cd12.firebasestorage.app",
             messagingSenderId: "688793907252",
@@ -120,6 +135,37 @@
         let piece = null, nextPiece = null;
         let dropCounter = 0, dropInterval = 800, lastTime = 0;
         let currentPlayerName = "Игрок";
+
+        // --- СИСТЕМА ИМЕН ИГРОКОВ ---
+        const playerNameInput = document.getElementById('playerName');
+        const customDropdown = document.getElementById('customDropdown');
+
+        function loadPlayerNames() {
+            customDropdown.innerHTML = ""; 
+            let allPlayers = JSON.parse(localStorage.getItem("tetrisPlayers")) || [];
+            allPlayers.forEach(name => {
+                let li = document.createElement("li");
+                li.innerText = name;
+                li.addEventListener("mousedown", (e) => {
+                    e.preventDefault(); // Чтобы инпут не терял фокус
+                    playerNameInput.value = name;
+                    customDropdown.style.display = "none";
+                });
+                customDropdown.appendChild(li);
+            });
+        }
+
+        // Показываем список при клике на поле
+        playerNameInput.addEventListener("focus", () => {
+            if (customDropdown.children.length > 0) customDropdown.style.display = "block";
+        });
+
+        // Прячем список при клике в другое место
+        document.addEventListener("click", (e) => {
+            if (e.target !== playerNameInput && e.target !== customDropdown) {
+                customDropdown.style.display = "none";
+            }
+        });
 
         // --- ГЛОБАЛЬНЫЕ РЕКОРДЫ (Firebase) ---
         function loadLeaderboard() {
@@ -250,9 +296,21 @@
         const bindBtn = (id, action) => { const btn = document.getElementById(id); btn.addEventListener('pointerdown', (e) => { e.preventDefault(); action(); }); };
         bindBtn('btn-left', () => playerMove(-1)); bindBtn('btn-right', () => playerMove(1)); bindBtn('btn-down', () => playerDrop()); bindBtn('btn-rotate', () => playerRotate()); bindBtn('btn-drop', () => playerHardDrop());
 
+        // Кнопка Старт и Сохранение Имени
         document.getElementById('startBtn').addEventListener('click', () => {
-            let name = document.getElementById('playerName').value.trim();
-            currentPlayerName = name || "Игрок";
+            let name = playerNameInput.value.trim();
+            if (name === "") name = "Игрок";
+            currentPlayerName = name;
+            
+            // Сохраняем имя, если его еще нет в списке
+            let allPlayers = JSON.parse(localStorage.getItem("tetrisPlayers")) || [];
+            if (!allPlayers.includes(name)) {
+                allPlayers.push(name);
+                localStorage.setItem("tetrisPlayers", JSON.stringify(allPlayers));
+            }
+            loadPlayerNames(); // Обновляем выпадающий список
+            
+            customDropdown.style.display = "none"; 
             document.getElementById('menu-screen').style.display = 'none';
             startGame();
         });
@@ -266,6 +324,8 @@
             lastTime = performance.now(); requestAnimationFrame(update);
         }
 
+        // Инициализация
+        loadPlayerNames();
         loadLeaderboard();
         createBoard();
         draw();
